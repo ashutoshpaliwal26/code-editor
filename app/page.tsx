@@ -11,7 +11,9 @@ import AuthModal from "@/components/Auth/AuthModal"
 export default function Home() {
   const [isClient, setIsClient] = useState(false)
 
+  
   useEffect(() => {
+    console.log(process.env.NEXT_PUBLIC_API_URL);
     setIsClient(true)
   }, [])
 
