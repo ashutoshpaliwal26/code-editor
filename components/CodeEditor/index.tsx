@@ -3,7 +3,6 @@
 import type React from "react"
 
 import { useState } from "react"
-import { useAuth } from "@/contexts/AuthContext"
 import { useTheme } from "@/contexts/ThemeContext"
 import TopBar from "./TopBar"
 import Sidebar from "./Sidebar"
@@ -13,7 +12,6 @@ import SettingsPanel from "./SettingsPanel"
 import PreviewPanel from "./PreviewPanel"
 
 export default function CodeEditor() {
-  const { user } = useAuth()
   const { theme } = useTheme()
   const [sidebarWidth, setSidebarWidth] = useState(280)
   const [terminalHeight, setTerminalHeight] = useState(200)
@@ -47,22 +45,22 @@ export default function CodeEditor() {
     }
   }
 
-  if (!user) {
-    return (
-      <div
-        className={`h-screen w-screen flex items-center justify-center ${
-          theme === "dark" ? "bg-gray-900" : "bg-gray-50"
-        }`}
-      >
-        <div className="text-center">
-          <h1 className={`text-2xl font-bold mb-4 ${theme === "dark" ? "text-gray-100" : "text-gray-900"}`}>
-            Welcome to Code Editor Pro
-          </h1>
-          <p className={`${theme === "dark" ? "text-gray-400" : "text-gray-600"}`}>Please sign in to continue</p>
-        </div>
-      </div>
-    )
-  }
+  // if (!user) {
+  //   return (
+  //     <div
+  //       className={`h-screen w-screen flex items-center justify-center ${
+  //         theme === "dark" ? "bg-gray-900" : "bg-gray-50"
+  //       }`}
+  //     >
+  //       <div className="text-center">
+  //         <h1 className={`text-2xl font-bold mb-4 ${theme === "dark" ? "text-gray-100" : "text-gray-900"}`}>
+  //           Welcome to Code Editor Pro
+  //         </h1>
+  //         <p className={`${theme === "dark" ? "text-gray-400" : "text-gray-600"}`}>Please sign in to continue</p>
+  //       </div>
+  //     </div>
+  //   )
+  // }
 
   return (
     <div

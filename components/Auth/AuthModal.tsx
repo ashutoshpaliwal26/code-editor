@@ -2,22 +2,42 @@
 
 import React, { useState } from 'react';
 import { Eye, EyeOff, X, Mail, Lock } from 'lucide-react';
-import { useAuth } from '@/contexts/AuthContext';
 import Link from 'next/link';
+import { SignupLoginFormType } from '@/types';
+import apiClient from '@/lib/apiClient';
+import { useDispatch } from 'react-redux';
+import { setShowAuthModel, setUser } from '@/store/auth/authSlice';
+import axios from 'axios';
+import { useRouter } from 'next/navigation';
 
 const AuthModal: React.FC = () => {
-  const {login} = useAuth();
+  const dispatch = useDispatch();
   const [email, setEmail] = useState<string>('');
   const [password, setPassword] = useState<string>('');
   const [showPassword, setShowPassword] = useState<boolean>(false);
   const [emailFocused, setEmailFocused] = useState<boolean>(false);
   const [passwordFocused, setPasswordFocused] = useState<boolean>(false);
+  const navigate = useRouter();
 
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    // Handle sign in logic here
-    login(email, password);
-    console.log('Sign in attempted with:', { email, password });
+  const handleSubmit = async(e: React.FormEvent<HTMLFormElement>) => {
+        const data:SignupLoginFormType = {
+          email, password
+        }
+        try{
+          const responce = await apiClient.post("auth/login", data);
+          if(responce.status === 201){
+            localStorage.setItem("uuid", JSON.stringify(responce.data.token))
+            localStorage.setItem("user", JSON.stringify(responce.data.user))
+            dispatch(setUser(responce.data.user));
+            dispatch(setShowAuthModel(false));
+            navigate.push("/dashboard");
+          }
+        }catch(error){
+          if(axios.isAxiosError(error)){
+            console.log(error.response?.data.message);
+          }
+        }
+    
   };
 
   return (

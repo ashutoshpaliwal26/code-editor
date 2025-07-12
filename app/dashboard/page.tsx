@@ -1,19 +1,17 @@
 "use client"
-
 import { useState, useEffect } from "react"
-import { AuthProvider } from "@/contexts/AuthContext"
 import { ThemeProvider } from "@/contexts/ThemeContext"
 import { EditorProvider } from "@/contexts/EditorContext"
 import { FileSystemProvider } from "@/contexts/FileSystemContext"
 import CodeEditor from "@/components/CodeEditor"
-import AuthModal from "@/components/Auth/AuthModal"
-
+import { useDispatch } from "react-redux"
+import { setUser } from "@/store/auth/authSlice"
 export default function Home() {
+  const dispatch = useDispatch();
   const [isClient, setIsClient] = useState(false)
-
-
   useEffect(() => {
     console.log(process.env.NEXT_PUBLIC_API_URL);
+    dispatch(setUser(JSON.parse(localStorage.getItem('user') as string)));
     setIsClient(true)
   }, [])
 

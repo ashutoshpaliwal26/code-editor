@@ -1,10 +1,11 @@
 "use client"
 
 import { useState } from "react"
-import { useAuth } from "@/contexts/AuthContext"
 import { useTheme } from "@/contexts/ThemeContext"
 import { useEditor } from "@/contexts/EditorContext"
 import { Play, Settings, User, LogOut, Moon, Sun, Save, Download, Eye, Columns, Monitor } from "lucide-react"
+import { useSelector } from "react-redux"
+import { RootState } from "@/store/store"
 
 interface TopBarProps {
   onSettingsClick: () => void
@@ -15,7 +16,7 @@ interface TopBarProps {
 }
 
 export default function TopBar({ onSettingsClick, layout, onLayoutChange, showPreview, onTogglePreview }: TopBarProps) {
-  const { user, logout } = useAuth()
+  const user = useSelector((state : RootState) => state.auth.user)
   const { theme, toggleTheme } = useTheme()
   const { activeFile, saveFile, runCode } = useEditor()
   const [showUserMenu, setShowUserMenu] = useState(false)
@@ -164,7 +165,7 @@ export default function TopBar({ onSettingsClick, layout, onLayoutChange, showPr
             }`}
           >
             <User className="w-4 h-4" />
-            <span className="text-sm">{user?.name || "User"}</span>
+            <span className="text-sm">{ user?.name || "User"}</span>
           </button>
 
           {showUserMenu && (
@@ -175,7 +176,6 @@ export default function TopBar({ onSettingsClick, layout, onLayoutChange, showPr
             >
               <button
                 onClick={() => {
-                  logout()
                   setShowUserMenu(false)
                 }}
                 className={`w-full flex items-center space-x-2 px-4 py-2 text-left transition-colors ${

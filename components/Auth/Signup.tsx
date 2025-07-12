@@ -2,6 +2,12 @@
 import React, { useState } from 'react';
 import { Eye, EyeOff, X, Mail, Lock, User, Code, Check } from 'lucide-react';
 import Link from 'next/link';
+import { SignupLoginFormType } from '@/types';
+import axios from 'axios';
+import apiClient from '@/lib/apiClient';
+import { useRouter } from 'next/navigation';
+import { useDispatch } from 'react-redux';
+import { setShowAuthModel, setUser } from '@/store/auth/authSlice';
 
 const SignUpForm: React.FC = () => {
   const [formData, setFormData] = useState({
@@ -15,6 +21,8 @@ const SignUpForm: React.FC = () => {
   const [showConfirmPassword, setShowConfirmPassword] = useState<boolean>(false);
   const [focused, setFocused] = useState<string>('');
   const [agreedToTerms, setAgreedToTerms] = useState<boolean>(false);
+  const navigate = useRouter();
+  const dispatch = useDispatch();
 
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({
@@ -23,9 +31,26 @@ const SignUpForm: React.FC = () => {
     }));
   };
 
-  const handleSubmit = () => {
-    // Handle sign up logic here
-    console.log('Sign up attempted with:', formData);
+  const handleSubmit = async () => {
+    const data:SignupLoginFormType = {
+      name : `${formData.firstName} ${formData.lastName}`,
+      email : formData.email,
+      password : formData.password
+    }
+    try{
+      const responce = await apiClient.post("auth/signup", data);
+      if(responce.status === 201){
+        localStorage.setItem("uuid", JSON.stringify(responce.data.token))
+        localStorage.setItem("user", JSON.stringify(responce.data.user))
+        dispatch(setUser(responce.data.user));
+        dispatch(setShowAuthModel(false));
+        navigate.push("/dashboard");
+      }
+    }catch(error){
+      if(axios.isAxiosError(error)){
+        console.log(error.response?.data.message);
+      }
+    }
   };
 
   const getPasswordStrength = (password: string) => {
