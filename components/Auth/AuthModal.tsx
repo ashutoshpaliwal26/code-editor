@@ -20,12 +20,14 @@ const AuthModal: React.FC = () => {
   const navigate = useRouter();
 
   const handleSubmit = async(e: React.FormEvent<HTMLFormElement>) => {
+        e.preventDefault();
         const data:SignupLoginFormType = {
           email, password
         }
         try{
           const responce = await apiClient.post("auth/login", data);
-          if(responce.status === 201){
+          console.log(responce)
+          if(responce.status === 200){
             localStorage.setItem("uuid", JSON.stringify(responce.data.token))
             localStorage.setItem("user", JSON.stringify(responce.data.user))
             dispatch(setUser(responce.data.user));

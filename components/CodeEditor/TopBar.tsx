@@ -6,6 +6,9 @@ import { useEditor } from "@/contexts/EditorContext"
 import { Play, Settings, User, LogOut, Moon, Sun, Save, Download, Eye, Columns, Monitor } from "lucide-react"
 import { useSelector } from "react-redux"
 import { RootState } from "@/store/store"
+import { useParams } from "next/navigation"
+import { stringify } from "querystring"
+import { Item } from "@radix-ui/react-accordion"
 
 interface TopBarProps {
   onSettingsClick: () => void
@@ -21,6 +24,7 @@ export default function TopBar({ onSettingsClick, layout, onLayoutChange, showPr
   const { activeFile, saveFile, runCode } = useEditor()
   const [showUserMenu, setShowUserMenu] = useState(false)
   const [isRunning, setIsRunning] = useState(false)
+  const params = useParams();
 
   const handleRun = async () => {
     if (!activeFile) return
@@ -54,7 +58,7 @@ export default function TopBar({ onSettingsClick, layout, onLayoutChange, showPr
           <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-600 rounded flex items-center justify-center">
             <span className="text-white font-bold text-sm">CE</span>
           </div>
-          <span className="font-semibold">Code Editor Pro</span>
+          <span className="font-semibold">{params.slug}</span>
         </div>
 
         <div className="flex items-center space-x-2">

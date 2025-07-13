@@ -11,7 +11,7 @@ import Terminal from "./Terminal"
 import SettingsPanel from "./SettingsPanel"
 import PreviewPanel from "./PreviewPanel"
 
-export default function CodeEditor() {
+const CodeEditor = () => {
   const { theme } = useTheme()
   const [sidebarWidth, setSidebarWidth] = useState(280)
   const [terminalHeight, setTerminalHeight] = useState(200)
@@ -64,9 +64,8 @@ export default function CodeEditor() {
 
   return (
     <div
-      className={`h-screen w-screen flex flex-col ${
-        theme === "dark" ? "bg-gray-900 text-gray-100" : "bg-white text-gray-900"
-      }`}
+      className={`h-screen w-screen flex flex-col ${theme === "dark" ? "bg-gray-900 text-gray-100" : "bg-white text-gray-900"
+        }`}
       onMouseMove={(e) => {
         handleSidebarResize(e)
         handleTerminalResize(e)
@@ -98,9 +97,8 @@ export default function CodeEditor() {
           {(layout === "split" || layout === "preview") && (
             <>
               <div
-                className={`w-1 cursor-col-resize ${
-                  theme === "dark" ? "hover:bg-gray-600 bg-gray-700" : "hover:bg-gray-300 bg-gray-200"
-                } transition-colors`}
+                className={`w-1 cursor-col-resize ${theme === "dark" ? "hover:bg-gray-600 bg-gray-700" : "hover:bg-gray-300 bg-gray-200"
+                  } transition-colors`}
                 onMouseDown={() => setIsResizing(true)}
               />
               <PreviewPanel width={previewWidth} height={`calc(100vh - 64px - ${terminalHeight}px)`} />
@@ -113,3 +111,5 @@ export default function CodeEditor() {
     </div>
   )
 }
+
+export default CodeEditor;
