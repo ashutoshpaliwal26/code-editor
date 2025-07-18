@@ -3,7 +3,7 @@
 import { useState } from "react"
 import { useTheme } from "@/contexts/ThemeContext"
 import { useEditor } from "@/contexts/EditorContext"
-import { Play, Settings, User, LogOut, Moon, Sun, Save, Download, Eye, Columns, Monitor } from "lucide-react"
+import { Play, Settings, User, LogOut, Moon, Sun, Save, Download, Columns, Monitor, MessageCircle, Eye } from "lucide-react"
 import { useSelector } from "react-redux"
 import { RootState } from "@/store/store"
 import { useParams } from "next/navigation"
@@ -111,9 +111,9 @@ export default function TopBar({ onSettingsClick, layout, onLayoutChange, showPr
               }`}
               title="Split View"
             >
-              <Columns className="w-4 h-4" />
+              <MessageCircle className="w-4 h-4" />
             </button>
-            <button
+            {/* <button
               onClick={() => onLayoutChange("preview")}
               className={`p-2 transition-colors ${
                 layout === "preview"
@@ -127,7 +127,7 @@ export default function TopBar({ onSettingsClick, layout, onLayoutChange, showPr
               title="Preview Only"
             >
               <Eye className="w-4 h-4" />
-            </button>
+            </button> */}
           </div>
         </div>
       </div>

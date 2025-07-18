@@ -20,9 +20,10 @@ const CodeEditor = () => {
   const [showPreview, setShowPreview] = useState(false)
   const [isResizing, setIsResizing] = useState(false)
   const [layout, setLayout] = useState<"editor" | "split" | "preview">("editor")
+  const [resizeDirection, setResizeDirection] = useState<"x" | "y" | "z">("x");
 
   const handleSidebarResize = (e: React.MouseEvent) => {
-    if (!isResizing) return
+    if (!isResizing || resizeDirection !== 'x') return
     const newWidth = e.clientX
     if (newWidth >= 200 && newWidth <= 500) {
       setSidebarWidth(newWidth)
@@ -30,7 +31,7 @@ const CodeEditor = () => {
   }
 
   const handleTerminalResize = (e: React.MouseEvent) => {
-    if (!isResizing) return
+    if (!isResizing || resizeDirection !== 'y') return
     const newHeight = window.innerHeight - e.clientY
     if (newHeight >= 100 && newHeight <= 400) {
       setTerminalHeight(newHeight)
@@ -38,7 +39,7 @@ const CodeEditor = () => {
   }
 
   const handlePreviewResize = (e: React.MouseEvent) => {
-    if (!isResizing) return
+    if (!isResizing || resizeDirection !== 'z') return
     const newWidth = window.innerWidth - e.clientX
     if (newWidth >= 300 && newWidth <= 800) {
       setPreviewWidth(newWidth)
@@ -61,6 +62,8 @@ const CodeEditor = () => {
   //     </div>
   //   )
   // }
+  console.log({previewWidth});
+  
 
   return (
     <div
@@ -82,16 +85,22 @@ const CodeEditor = () => {
       />
 
       <div className="flex flex-1 overflow-hidden">
-        <Sidebar width={sidebarWidth} onResizeStart={() => setIsResizing(true)} />
+        <Sidebar width={sidebarWidth} onResizeStart={() => {
+          setIsResizing(true)
+          setResizeDirection('x')
+        }} />
 
         <div className="flex flex-1">
           <div className="flex flex-col flex-1">
             <MainEditor
               height={`calc(100vh - 64px - ${terminalHeight}px)`}
               showPreview={layout === "split" || layout === "preview"}
-              previewWidth={layout === "split" ? previewWidth : 0}
+              previewWidth={layout === "split" ? previewWidth : previewWidth}
             />
-            <Terminal height={terminalHeight} onResizeStart={() => setIsResizing(true)} />
+            <Terminal height={terminalHeight} onResizeStart={() => {
+              setIsResizing(true);
+              setResizeDirection('y')
+            }} />
           </div>
 
           {(layout === "split" || layout === "preview") && (
@@ -99,9 +108,13 @@ const CodeEditor = () => {
               <div
                 className={`w-1 cursor-col-resize ${theme === "dark" ? "hover:bg-gray-600 bg-gray-700" : "hover:bg-gray-300 bg-gray-200"
                   } transition-colors`}
-                onMouseDown={() => setIsResizing(true)}
+                onMouseDown={() => {
+                  setResizeDirection("z");
+                  setIsResizing(true)
+                }}
+                
               />
-              <PreviewPanel width={previewWidth} height={`calc(100vh - 64px - ${terminalHeight}px)`} />
+              <PreviewPanel width={previewWidth} height={`calc(100vh - 64px)`} />
             </>
           )}
         </div>

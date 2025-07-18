@@ -1,10 +1,13 @@
 "use client"
 
-import { useState, useRef, useEffect } from "react"
+import { useState, useRef, useEffect, useCallback, ChangeEvent } from "react"
 import { useTheme } from "@/contexts/ThemeContext"
 import { useEditor } from "@/contexts/EditorContext"
 import { useFileSystem } from "@/contexts/FileSystemContext"
 import { X, Search } from "lucide-react"
+import { useSelector } from "react-redux"
+import { RootState } from "@/store/store"
+import { useSocket } from "@/provider/SocketProvider"
 
 interface MainEditorProps {
   height: string
@@ -22,6 +25,7 @@ export default function MainEditor({ height, showPreview, previewWidth }: MainEd
   const [replaceTerm, setReplaceTerm] = useState("")
   const [currentContent, setCurrentContent] = useState("")
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const socket = useSocket();
 
   useEffect(() => {
     if (activeFile) {
@@ -43,6 +47,8 @@ export default function MainEditor({ height, showPreview, previewWidth }: MainEd
       }
     }
 
+    socket?.emit("active:file", activeFile);
+
     window.addEventListener("keydown", handleKeyDown)
     return () => window.removeEventListener("keydown", handleKeyDown)
   }, [activeFile])
@@ -58,6 +64,10 @@ export default function MainEditor({ height, showPreview, previewWidth }: MainEd
     if (activeFile) {
       saveFile(activeFile, currentContent)
     }
+  }
+
+  const handelFileChange = (e : ChangeEvent<HTMLTextAreaElement>) => {
+    setCurrentContent(e.target.value);
   }
 
   const getFileLanguage = (fileName: string) => {
@@ -87,7 +97,7 @@ export default function MainEditor({ height, showPreview, previewWidth }: MainEd
     }
   }
 
-  const renderLineNumbers = (content: string) => {
+  const renderLineNumbers = (content: string = " \n") => {
     const lines = content.split("\n")
     return (
       <div className={`pr-4 text-right select-none ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>
@@ -120,11 +130,35 @@ export default function MainEditor({ height, showPreview, previewWidth }: MainEd
     handleContentChange(newContent)
   }
 
+  // 🔁 Define this outside the effect with useCallback
+  const handelFileContent = useCallback((content: string) => {
+    setCurrentContent(content);
+  }, []);
+
+  useEffect(() => {
+    if (!socket) return; // ✅ Fine here — inside the hook body
+
+    socket.on("active:file:content", handelFileContent);
+
+    return (() => {
+      socket.off("active:file:content", handelFileContent);
+    })
+
+  }, [socket]);
+  
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      socket?.emit("file:change", {activeFile, data : currentContent})
+    }, 2000);
+    
+    return () => clearTimeout(timer);
+  }, [currentContent])
+
   if (openFiles.length === 0) {
     return (
       <div
         className={`flex items-center justify-center ${theme === "dark" ? "bg-gray-900" : "bg-white"}`}
-        style={{ height }}
+        style={{ height , width : "100%" }}
       >
         <div className="text-center">
           <div className={`text-6xl mb-4 ${theme === "dark" ? "text-gray-700" : "text-gray-300"}`}>{"</>"}</div>
@@ -137,8 +171,7 @@ export default function MainEditor({ height, showPreview, previewWidth }: MainEd
     )
   }
 
-  const editorWidth = showPreview ? `calc(100% - ${previewWidth}px)` : "100%"
-
+  const editorWidth = showPreview ? `calc(100%)` : "100%"
   return (
     <div
       className={`flex flex-col ${theme === "dark" ? "bg-gray-900" : "bg-white"}`}
@@ -151,15 +184,14 @@ export default function MainEditor({ height, showPreview, previewWidth }: MainEd
         {openFiles.map((file) => (
           <div
             key={file.path}
-            className={`flex items-center space-x-2 px-3 py-2 border-r cursor-pointer transition-colors ${
-              activeFile === file.path
-                ? theme === "dark"
-                  ? "bg-gray-900 border-gray-600"
-                  : "bg-white border-gray-300"
-                : theme === "dark"
-                  ? "bg-gray-800 border-gray-700 hover:bg-gray-700"
-                  : "bg-gray-50 border-gray-200 hover:bg-gray-100"
-            }`}
+            className={`flex items-center space-x-2 px-3 py-2 border-r cursor-pointer transition-colors ${activeFile === file.path
+              ? theme === "dark"
+                ? "bg-gray-900 border-gray-600"
+                : "bg-white border-gray-300"
+              : theme === "dark"
+                ? "bg-gray-800 border-gray-700 hover:bg-gray-700"
+                : "bg-gray-50 border-gray-200 hover:bg-gray-100"
+              }`}
             onClick={() => setActiveFile(file.path)}
           >
             <span className="text-sm">{file.name}</span>
@@ -168,9 +200,8 @@ export default function MainEditor({ height, showPreview, previewWidth }: MainEd
                 e.stopPropagation()
                 closeFile(file.path)
               }}
-              className={`p-0.5 rounded transition-colors ${
-                theme === "dark" ? "hover:bg-gray-600" : "hover:bg-gray-200"
-              }`}
+              className={`p-0.5 rounded transition-colors ${theme === "dark" ? "hover:bg-gray-600" : "hover:bg-gray-200"
+                }`}
             >
               <X className="w-3 h-3" />
             </button>
@@ -180,9 +211,8 @@ export default function MainEditor({ height, showPreview, previewWidth }: MainEd
         <div className="flex-1 flex justify-end items-center px-4">
           <button
             onClick={() => setShowSearch(!showSearch)}
-            className={`p-1 rounded transition-colors ${
-              theme === "dark" ? "hover:bg-gray-700 text-gray-400" : "hover:bg-gray-200 text-gray-600"
-            }`}
+            className={`p-1 rounded transition-colors ${theme === "dark" ? "hover:bg-gray-700 text-gray-400" : "hover:bg-gray-200 text-gray-600"
+              }`}
             title="Search (Ctrl+F)"
           >
             <Search className="w-4 h-4" />
@@ -201,11 +231,10 @@ export default function MainEditor({ height, showPreview, previewWidth }: MainEd
               placeholder="Search..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className={`flex-1 px-3 py-1 text-sm rounded border ${
-                theme === "dark"
-                  ? "bg-gray-700 border-gray-600 text-gray-300"
-                  : "bg-white border-gray-300 text-gray-700"
-              } focus:outline-none focus:ring-2 focus:ring-blue-500`}
+              className={`flex-1 px-3 py-1 text-sm rounded border ${theme === "dark"
+                ? "bg-gray-700 border-gray-600 text-gray-300"
+                : "bg-white border-gray-300 text-gray-700"
+                } focus:outline-none focus:ring-2 focus:ring-blue-500`}
               onKeyDown={(e) => e.key === "Enter" && handleSearch()}
             />
             <input
@@ -213,11 +242,10 @@ export default function MainEditor({ height, showPreview, previewWidth }: MainEd
               placeholder="Replace..."
               value={replaceTerm}
               onChange={(e) => setReplaceTerm(e.target.value)}
-              className={`flex-1 px-3 py-1 text-sm rounded border ${
-                theme === "dark"
-                  ? "bg-gray-700 border-gray-600 text-gray-300"
-                  : "bg-white border-gray-300 text-gray-700"
-              } focus:outline-none focus:ring-2 focus:ring-blue-500`}
+              className={`flex-1 px-3 py-1 text-sm rounded border ${theme === "dark"
+                ? "bg-gray-700 border-gray-600 text-gray-300"
+                : "bg-white border-gray-300 text-gray-700"
+                } focus:outline-none focus:ring-2 focus:ring-blue-500`}
             />
             <button
               onClick={handleSearch}
@@ -233,9 +261,8 @@ export default function MainEditor({ height, showPreview, previewWidth }: MainEd
             </button>
             <button
               onClick={() => setShowSearch(false)}
-              className={`p-1 rounded transition-colors ${
-                theme === "dark" ? "hover:bg-gray-700" : "hover:bg-gray-200"
-              }`}
+              className={`p-1 rounded transition-colors ${theme === "dark" ? "hover:bg-gray-700" : "hover:bg-gray-200"
+                }`}
             >
               <X className="w-4 h-4" />
             </button>
@@ -247,11 +274,10 @@ export default function MainEditor({ height, showPreview, previewWidth }: MainEd
       <div className="flex flex-1 overflow-hidden">
         {lineNumbers && (
           <div
-            className={`border-r px-2 py-4 ${
-              theme === "dark" ? "border-gray-700 bg-gray-800" : "border-gray-200 bg-gray-50"
-            }`}
+            className={`border-r px-2 py-4 ${theme === "dark" ? "border-gray-700 bg-gray-800" : "border-gray-200 bg-gray-50"
+              }`}
           >
-            {activeFile && renderLineNumbers(currentContent)}
+            {activeFile && renderLineNumbers(currentContent || "")}
           </div>
         )}
 
@@ -260,10 +286,9 @@ export default function MainEditor({ height, showPreview, previewWidth }: MainEd
             <textarea
               ref={textareaRef}
               value={currentContent}
-              onChange={(e) => handleContentChange(e.target.value)}
-              className={`w-full h-full p-4 font-mono text-sm leading-6 resize-none outline-none ${
-                theme === "dark" ? "bg-gray-900 text-gray-300" : "bg-white text-gray-700"
-              }`}
+              onChange={handelFileChange}
+              className={`w-full h-full p-4 font-mono text-sm leading-6 resize-none outline-none ${theme === "dark" ? "bg-gray-900 text-gray-300" : "bg-white text-gray-700"
+                }`}
               style={{
                 tabSize: 2,
                 fontFamily: 'Monaco, Menlo, "Ubuntu Mono", Consolas, source-code-pro, monospace',
@@ -280,15 +305,14 @@ export default function MainEditor({ height, showPreview, previewWidth }: MainEd
       {/* Status Bar */}
       {activeFile && (
         <div
-          className={`px-4 py-1 text-xs border-t ${
-            theme === "dark" ? "border-gray-700 bg-gray-800 text-gray-400" : "border-gray-200 bg-gray-50 text-gray-600"
-          }`}
+          className={`px-4 py-1 text-xs border-t ${theme === "dark" ? "border-gray-700 bg-gray-800 text-gray-400" : "border-gray-200 bg-gray-50 text-gray-600"
+            }`}
         >
           <div className="flex justify-between items-center">
             <div className="flex items-center space-x-4">
               <span>{getFileLanguage(openFiles.find((f) => f.path === activeFile)?.name || "")}</span>
-              <span>Lines: {currentContent.split("\n").length}</span>
-              <span>Characters: {currentContent.length}</span>
+              <span>Lines: {currentContent?.split("\n").length}</span>
+              <span>Characters: {currentContent?.length}</span>
             </div>
             <div className="flex items-center space-x-2">
               <span>UTF-8</span>
