@@ -14,13 +14,16 @@ import {
   Layers,
   Download,
   Menu,
-  X
+  X,
+  Link
 } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 
 const CodeEditorLanding: React.FC = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [typedText, setTypedText] = useState('');
   const [currentIndex, setCurrentIndex] = useState(0);
+  const navigate = useRouter();
   
   const codeSnippets = [
     'const editor = new CodeEditor();',
@@ -28,6 +31,10 @@ const CodeEditorLanding: React.FC = () => {
     'editor.enableAutoComplete();',
     'editor.run();'
   ];
+
+  function goToDash () {
+    navigate.push("/project/test-project");
+  }
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -110,7 +117,7 @@ const CodeEditorLanding: React.FC = () => {
             <a href="#pricing" className="text-slate-300 hover:text-white transition-colors duration-200">Pricing</a>
             <a href="#docs" className="text-slate-300 hover:text-white transition-colors duration-200">Docs</a>
             <a href="#about" className="text-slate-300 hover:text-white transition-colors duration-200">About</a>
-            <button className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 px-6 py-2 rounded-xl transition-all duration-200 transform hover:scale-105">
+            <button onClick={goToDash} className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 px-6 py-2 rounded-xl transition-all duration-200 transform hover:scale-105">
               Get Started
             </button>
           </div>

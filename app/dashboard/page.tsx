@@ -47,46 +47,14 @@ const Dashboard: React.FC = () => {
   const [apps] = useState<App[]>([
     {
       id: '1',
-      name: 'Style-fussion',
-      lastModified: '1 year ago',
+      name: "test-project",
+      lastModified: '10 min ago',
       size: '208.58 MiB',
       isPublic: true,
-      icon: 'S'
+      icon: 'T'
     },
-    {
-      id: '2',
-      name: 'Demos',
-      lastModified: '1 year ago',
-      size: '32.23 MiB',
-      isPublic: true,
-      icon: 'D'
-    },
-    {
-      id: '3',
-      name: 'E-Commerce',
-      lastModified: '1 year ago',
-      size: '43.49 MiB',
-      isPublic: true,
-      icon: 'E'
-    },
-    {
-      id: '4',
-      name: 'socialApp',
-      lastModified: '1 year ago',
-      size: '37.81 MiB',
-      isPublic: true,
-      icon: 's'
-    },
-    {
-      id: '5',
-      name: 'ChatApp',
-      lastModified: '1 year ago',
-      size: '197.45 MiB',
-      isPublic: true,
-      icon: 'C'
-    }
   ]);
-  const user = useSelector((state: RootState) => state.auth.user);
+  const user = "ashutosh paliwal";
   const [loading, setLoading] = useState<boolean>(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -142,7 +110,7 @@ const Dashboard: React.FC = () => {
   };
 
   useEffect(() => {
-    dispatch(setUser(JSON.parse(localStorage.getItem('user')! as string)))
+    // dispatch(setUser(JSON.parse(localStorage.getItem('user')! as string)))
     const uuid = localStorage.getItem("uuid");
     if (uuid) {
       const token = JSON.parse(uuid);
@@ -213,11 +181,11 @@ const Dashboard: React.FC = () => {
                 <div className="p-4 border-b border-gray-700">
                   <div className="flex items-center space-x-3">
                     <div className="w-10 h-10 bg-gray-600 rounded-full flex items-center justify-center">
-                      <span className="text-sm font-medium">{`${user?.name.slice(0, 1)}${user?.name.split(" ")[1]?.slice(0, 1)}`}</span>
+                      <span className="text-sm font-medium">{`${user.slice(0, 1)}${user.split(" ")[1]?.slice(0, 1)}`}</span>
                     </div>
                     <div>
-                      <p className="font-medium text-white">{user?.name}</p>
-                      <p className="text-sm text-gray-400">{user?.email}</p>
+                      <p className="font-medium text-white">{user}</p>
+                      <p className="text-sm text-gray-400">{user}</p>
                     </div>
                   </div>
                 </div>
@@ -307,7 +275,7 @@ const Dashboard: React.FC = () => {
                   animationDelay: `${index * 100}ms`
                 }}
               >
-                <div className="flex items-center space-x-4">
+                <Link href={`/project/${app.name}`} className="flex items-center space-x-4">
                   <div className="w-10 h-10 bg-green-600 rounded-full flex items-center justify-center font-semibold text-white">
                     {app.icon}
                   </div>
@@ -325,7 +293,7 @@ const Dashboard: React.FC = () => {
                       <span>{app.size}</span>
                     </div>
                   </div>
-                </div>
+                </Link>
 
                 <button className="p-2 opacity-0 group-hover:opacity-100 hover:bg-gray-700 rounded-lg transition-all duration-200">
                   <MoreHorizontal className="w-5 h-5 text-gray-400" />

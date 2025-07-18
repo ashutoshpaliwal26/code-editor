@@ -1,389 +1,180 @@
 "use client"
 
-import type React from "react"
-
-import { useState } from "react"
 import { useTheme } from "@/contexts/ThemeContext"
+import { FileNode } from "@/types"
+import { ChevronDown, ChevronRight, File, FilePlus, Folder, FolderClosed, FolderInput, FolderOpen, FolderPlus, Search } from "lucide-react"
+import React, { useCallback, useEffect, useState } from "react"
+import FileCreateCard from "./fileCreateCard"
 import { useEditor } from "@/contexts/EditorContext"
-import { useFileSystem } from "@/contexts/FileSystemContext"
-import { Folder, FolderOpen, File, ChevronRight, ChevronDown, Search, FilePlus, FolderPlus, Trash2 } from "lucide-react"
+import axios from "axios"
+import { useSocket } from "@/provider/SocketProvider"
+
 
 interface SidebarProps {
-  width: number
+  width: number,
   onResizeStart: () => void
 }
 
-interface FileNode {
-  name: string
-  type: "file" | "folder"
-  children?: FileNode[]
-  path: string
-  isOpen?: boolean
+interface FileTreeProps {
+  theam : string;
+  data: FileNode
 }
 
-export default function Sidebar({ width, onResizeStart }: SidebarProps) {
+
+const FileTree: React.FC<FileTreeProps> = ({ data, theam }) => {
+  const [isOpen, setIsOpen] = useState(data.isOpen ?? false);
+  const { openFile, activeFile } = useEditor();
+  
+  const toggleFolder = () => {
+    if (data.type === "folder") {
+      setIsOpen(!isOpen);
+    }
+  };
+
+  console.log({activeFile});
+  
+  return (
+    <div className="ml-4 p-1">
+      <div
+        onClick={() => {
+          if(data.type === "folder"){
+            toggleFolder()
+          }else{
+            openFile(data.path, data.name);
+          }
+        }}
+        className={`flex items-center space-x-2 cursor-pointer ${data.type === "folder" ? "hover:text-blue-400" : "hover:text-blue-300"
+          }`}
+      >
+        <span className={`flex gap-1 ${data.type === "file" ? "pl-6" : "text-blue-500"}`}>
+          <p className={`${theam === 'dark' ? "text-gray-200"  : "text-gray-800"}`}>{data.type === "folder" && (isOpen ? <ChevronDown size={20} /> : <ChevronRight size={20} />)}</p>
+          <p className={`${theam === 'dark' ? "text-blue-500"  : "text-blue-700"}`}>{data.type === "folder" ? (isOpen ? <FolderOpen size={20} /> : <Folder size={20} />) : <File size={20} />}</p>
+        </span>
+        <span className={`${theam === 'dark' ? "text-gray-200"  : "text-gray-800"} hover:text-blue-600 ${activeFile === data.path ? "text-sky-600" : ""}`} >{data.name}</span>
+      </div>
+
+      {data.type === "folder" && isOpen && data.children && (
+        <div className="ml-4">
+          {data.children.map((child) => (
+            <FileTree theam={theam} key={child.path} data={child} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
+
+
+const Sidebar: React.FC<SidebarProps> = ({ width, onResizeStart }) => {
+  const [isOpen, setIsOpen] = useState<boolean>(false);
+  const [files, setFiles] = useState<FileNode[]|null>();
+  const socket = useSocket();
   const { theme } = useTheme()
-  const { openFile, activeFile } = useEditor()
-  const { fileSystem, createFile, createFolder, deleteFile, listDirectory } = useFileSystem()
   const [searchTerm, setSearchTerm] = useState("")
-  const [expandedFolders, setExpandedFolders] = useState<Set<string>>(
-    new Set(["/workspace", "/workspace/src", "/workspace/public"]),
-  )
+  const [showCreateDialog, setShowCreateDialog] = useState<boolean>(false)
   const [showContextMenu, setShowContextMenu] = useState<{
     x: number
     y: number
     path: string
     type: "file" | "folder"
   } | null>(null)
-  const [showCreateDialog, setShowCreateDialog] = useState<{ type: "file" | "folder"; parentPath: string } | null>(null)
-  const [newItemName, setNewItemName] = useState("")
 
-  const buildFileTree = (): FileNode[] => {
-    const tree: FileNode[] = []
-    const pathMap = new Map<string, FileNode>()
-
-    // Create root workspace node
-    const workspaceNode: FileNode = {
-      name: "workspace",
-      type: "folder",
-      path: "/workspace",
-      children: [],
-      isOpen: expandedFolders.has("/workspace"),
-    }
-    tree.push(workspaceNode)
-    pathMap.set("/workspace", workspaceNode)
-
-    // Process all file paths
-    Object.keys(fileSystem).forEach((filePath) => {
-      const parts = filePath.split("/").filter((p) => p)
-      let currentPath = ""
-
-      parts.forEach((part, index) => {
-        const parentPath = currentPath
-        currentPath = currentPath + "/" + part
-
-        if (!pathMap.has(currentPath)) {
-          const isFile = index === parts.length - 1
-          const node: FileNode = {
-            name: part,
-            type: isFile ? "file" : "folder",
-            path: currentPath,
-            children: isFile ? undefined : [],
-            isOpen: expandedFolders.has(currentPath),
-          }
-
-          pathMap.set(currentPath, node)
-
-          // Add to parent
-          const parent = pathMap.get(parentPath)
-          if (parent && parent.children) {
-            parent.children.push(node)
-          }
-        }
-      })
-    })
-
-    // Sort children
-    const sortChildren = (node: FileNode) => {
-      if (node.children) {
-        node.children.sort((a, b) => {
-          if (a.type !== b.type) {
-            return a.type === "folder" ? -1 : 1
-          }
-          return a.name.localeCompare(b.name)
-        })
-        node.children.forEach(sortChildren)
-      }
-    }
-
-    tree.forEach(sortChildren)
-    return tree
+  const fetchData = useCallback(async (data: any) => {
+    console.log("change happen", { data });
+    fetchFiles();
+  }, [])
+  
+  function handelCardClose () {
+    setShowCreateDialog(!showCreateDialog);
   }
-
-  const toggleFolder = (path: string) => {
-    setExpandedFolders((prev) => {
-      const newSet = new Set(prev)
-      if (newSet.has(path)) {
-        newSet.delete(path)
-      } else {
-        newSet.add(path)
-      }
-      return newSet
-    })
-  }
-
-  const handleContextMenu = (e: React.MouseEvent, path: string, type: "file" | "folder") => {
-    e.preventDefault()
-    setShowContextMenu({
-      x: e.clientX,
-      y: e.clientY,
-      path,
-      type,
-    })
-  }
-
   const handleCreateItem = (type: "file" | "folder", parentPath: string) => {
-    setShowCreateDialog({ type, parentPath })
-    setShowContextMenu(null)
-  }
-
-  const confirmCreateItem = () => {
-    if (!showCreateDialog || !newItemName.trim()) return
-
-    const fullPath = `${showCreateDialog.parentPath}/${newItemName.trim()}`
-
-    if (showCreateDialog.type === "file") {
-      createFile(fullPath, "")
-      openFile(fullPath, newItemName.trim())
-    } else {
-      createFolder(fullPath)
-      setExpandedFolders((prev) => new Set([...prev, fullPath]))
-    }
-
-    setShowCreateDialog(null)
-    setNewItemName("")
-  }
-
-  const handleDelete = (path: string) => {
-    if (confirm(`Are you sure you want to delete ${path}?`)) {
-      deleteFile(path)
+    if(type === "file"){
+      setShowCreateDialog(true);
     }
     setShowContextMenu(null)
   }
 
-  const renderFileTree = (nodes: FileNode[], depth = 0) => {
-    return nodes
-      .filter((node) => searchTerm === "" || node.name.toLowerCase().includes(searchTerm.toLowerCase()))
-      .map((node) => (
-        <div key={node.path}>
-          <div
-            className={`flex items-center space-x-2 px-2 py-1 cursor-pointer transition-colors ${
-              activeFile === node.path
-                ? theme === "dark"
-                  ? "bg-gray-700"
-                  : "bg-gray-200"
-                : theme === "dark"
-                  ? "hover:bg-gray-800"
-                  : "hover:bg-gray-100"
-            }`}
-            style={{ paddingLeft: `${depth * 16 + 8}px` }}
-            onClick={() => {
-              if (node.type === "folder") {
-                toggleFolder(node.path)
-              } else {
-                openFile(node.path, node.name)
-              }
-            }}
-            onContextMenu={(e) => handleContextMenu(e, node.path, node.type)}
-          >
-            {node.type === "folder" && (
-              <div className="w-4 h-4 flex items-center justify-center">
-                {node.isOpen ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
-              </div>
-            )}
+  useEffect(() => {
+    socket?.on("dir:change", fetchData);
+    return () => {
+      socket?.off("dir:change", fetchData);
+    }
+  }, [socket])
 
-            <div className="w-4 h-4 flex items-center justify-center">
-              {node.type === "folder" ? (
-                node.isOpen ? (
-                  <FolderOpen className="w-4 h-4 text-blue-500" />
-                ) : (
-                  <Folder className="w-4 h-4 text-blue-500" />
-                )
-              ) : (
-                <File className={`w-4 h-4 ${getFileIconColor(node.name)}`} />
-              )}
-            </div>
+  const fetchFiles = async() => {
+    try{
+      const res = await axios.get("http://localhost:8001/get-files");
 
-            <span className={`text-sm ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>{node.name}</span>
-          </div>
-
-          {node.type === "folder" && node.isOpen && node.children && (
-            <div>{renderFileTree(node.children, depth + 1)}</div>
-          )}
-        </div>
-      ))
-  }
-
-  const getFileIconColor = (fileName: string) => {
-    const ext = fileName.split(".").pop()?.toLowerCase()
-    switch (ext) {
-      case "js":
-      case "jsx":
-        return "text-yellow-500"
-      case "ts":
-      case "tsx":
-        return "text-blue-500"
-      case "css":
-        return "text-blue-400"
-      case "html":
-        return "text-orange-500"
-      case "json":
-        return "text-green-500"
-      case "md":
-        return "text-gray-500"
-      case "py":
-        return "text-green-600"
-      default:
-        return "text-gray-500"
+      if(res.status === 200){
+        setFiles(res.data.tree);
+      }
+      
+    }catch(err) {
+      console.log((err as Error).message)
     }
   }
 
+  useEffect(() => {
+    fetchFiles();
+  }, [])
   return (
-    <>
-      <div
-        className={`flex flex-col border-r ${
-          theme === "dark" ? "bg-gray-800 border-gray-700" : "bg-gray-50 border-gray-200"
-        }`}
-        style={{ width }}
-      >
-        <div className="p-3 border-b border-gray-700">
-          <div className="flex items-center justify-between mb-3">
-            <span className="text-sm font-medium">Explorer</span>
-            <div className="flex items-center space-x-1">
-              <button
-                onClick={() => handleCreateItem("file", "/workspace")}
-                className={`p-1 rounded transition-colors ${
-                  theme === "dark" ? "hover:bg-gray-700" : "hover:bg-gray-200"
-                }`}
-                title="New File"
-              >
-                <FilePlus className="w-4 h-4" />
-              </button>
-              <button
-                onClick={() => handleCreateItem("folder", "/workspace")}
-                className={`p-1 rounded transition-colors ${
-                  theme === "dark" ? "hover:bg-gray-700" : "hover:bg-gray-200"
-                }`}
-                title="New Folder"
-              >
-                <FolderPlus className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
+    <div className="m-1 p-2 cursor-e-resize flex border-r-2 border-gray-700 flex-col" style={{ width }} onMouseDown={onResizeStart}>
 
-          <div className="relative">
-            <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Search files..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className={`w-full pl-8 pr-3 py-1.5 text-sm rounded border ${
-                theme === "dark"
-                  ? "bg-gray-700 border-gray-600 text-gray-300 placeholder-gray-400"
-                  : "bg-white border-gray-300 text-gray-700 placeholder-gray-500"
-              } focus:outline-none focus:ring-2 focus:ring-blue-500`}
-            />
-          </div>
-        </div>
-
-        <div className="flex-1 overflow-y-auto">{renderFileTree(buildFileTree())}</div>
-
-        <div
-          className={`w-1 cursor-col-resize absolute right-0 top-0 bottom-0 ${
-            theme === "dark" ? "hover:bg-gray-600" : "hover:bg-gray-300"
-          } transition-colors`}
-          onMouseDown={onResizeStart}
-        />
-      </div>
-
-      {/* Context Menu */}
-      {showContextMenu && (
-        <div
-          className={`fixed z-50 min-w-48 rounded-md shadow-lg ${
-            theme === "dark" ? "bg-gray-800 border border-gray-700" : "bg-white border border-gray-200"
-          }`}
-          style={{ left: showContextMenu.x, top: showContextMenu.y }}
-          onMouseLeave={() => setShowContextMenu(null)}
-        >
-          <div className="py-1">
+      <div className="p-3 border-b border-gray-700">
+        <div className="flex items-center justify-between mb-3">
+          <span className="text-sm font-medium">Explorer</span>
+          <div className="flex items-center space-x-1">
             <button
-              onClick={() => handleCreateItem("file", showContextMenu.path)}
-              className={`w-full flex items-center space-x-2 px-4 py-2 text-left transition-colors ${
-                theme === "dark" ? "hover:bg-gray-700 text-gray-300" : "hover:bg-gray-100 text-gray-700"
-              }`}
+              onClick={() => handleCreateItem("file", "/workspace")}
+              className={`p-1 rounded transition-colors ${theme === "dark" ? "hover:bg-gray-700" : "hover:bg-gray-200"
+                }`}
+              title="New File"
             >
               <FilePlus className="w-4 h-4" />
-              <span>New File</span>
             </button>
             <button
-              onClick={() => handleCreateItem("folder", showContextMenu.path)}
-              className={`w-full flex items-center space-x-2 px-4 py-2 text-left transition-colors ${
-                theme === "dark" ? "hover:bg-gray-700 text-gray-300" : "hover:bg-gray-100 text-gray-700"
-              }`}
+              onClick={() => handleCreateItem("folder", "/workspace")}
+              className={`p-1 rounded transition-colors ${theme === "dark" ? "hover:bg-gray-700" : "hover:bg-gray-200"
+                }`}
+              title="New Folder"
             >
               <FolderPlus className="w-4 h-4" />
-              <span>New Folder</span>
-            </button>
-            <hr className={`my-1 ${theme === "dark" ? "border-gray-700" : "border-gray-200"}`} />
-            <button
-              onClick={() => handleDelete(showContextMenu.path)}
-              className={`w-full flex items-center space-x-2 px-4 py-2 text-left transition-colors text-red-500 hover:bg-red-50 ${
-                theme === "dark" ? "hover:bg-red-900/20" : "hover:bg-red-50"
-              }`}
-            >
-              <Trash2 className="w-4 h-4" />
-              <span>Delete</span>
             </button>
           </div>
         </div>
-      )}
 
-      {/* Create Dialog */}
-      {showCreateDialog && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className={`w-96 rounded-lg shadow-xl ${theme === "dark" ? "bg-gray-800" : "bg-white"}`}>
-            <div className={`p-4 border-b ${theme === "dark" ? "border-gray-700" : "border-gray-200"}`}>
-              <h3 className="text-lg font-medium">Create New {showCreateDialog.type === "file" ? "File" : "Folder"}</h3>
-            </div>
-            <div className="p-4">
-              <input
-                type="text"
-                value={newItemName}
-                onChange={(e) => setNewItemName(e.target.value)}
-                placeholder={`Enter ${showCreateDialog.type} name...`}
-                className={`w-full px-3 py-2 rounded border ${
-                  theme === "dark"
-                    ? "bg-gray-700 border-gray-600 text-gray-300"
-                    : "bg-white border-gray-300 text-gray-700"
-                } focus:outline-none focus:ring-2 focus:ring-blue-500`}
-                autoFocus
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") confirmCreateItem()
-                  if (e.key === "Escape") {
-                    setShowCreateDialog(null)
-                    setNewItemName("")
-                  }
-                }}
-              />
-            </div>
-            <div
-              className={`flex justify-end space-x-2 p-4 border-t ${theme === "dark" ? "border-gray-700" : "border-gray-200"}`}
-            >
-              <button
-                onClick={() => {
-                  setShowCreateDialog(null)
-                  setNewItemName("")
-                }}
-                className={`px-4 py-2 rounded transition-colors ${
-                  theme === "dark"
-                    ? "bg-gray-700 text-gray-300 hover:bg-gray-600"
-                    : "bg-gray-200 text-gray-700 hover:bg-gray-300"
-                }`}
-              >
-                Cancel
-              </button>
-              <button
-                onClick={confirmCreateItem}
-                disabled={!newItemName.trim()}
-                className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors disabled:opacity-50"
-              >
-                Create
-              </button>
-            </div>
-          </div>
+        <div className="relative">
+          <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <input
+            type="text"
+            placeholder="Search files..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className={`w-full pl-8 pr-3 py-1.5 text-sm rounded border ${theme === "dark"
+              ? "bg-gray-700 border-gray-600 text-gray-300 placeholder-gray-400"
+              : "bg-white border-gray-300 text-gray-700 placeholder-gray-500"
+              } focus:outline-none focus:ring-2 focus:ring-blue-500`}
+          />
         </div>
-      )}
-    </>
-  )
-}
+      </div>
+
+      <div className="w-full h-full cursor-default ">
+        <div className="w-full h-fit text-white p-2 ml-4">
+          <button className={`flex w-full gap-2 items-center justify-start cursor-pointer ${theme === 'dark' ? 'text-gray-100' : 'text-gray-700'}`} onClick={() => setIsOpen(!isOpen)}>
+            {isOpen ? <ChevronDown size={20} /> : <ChevronRight size={20} />}
+            <span className="text-blue-600">{isOpen ? <FolderOpen size={20} /> : <Folder size={20} />}</span>
+            <p className={`${theme === 'dark' ? 'text-gray-100' : 'text-gray-700'}`}> workspace</p>
+          </button>
+          {files && isOpen && files.map((node) => (
+            <FileTree theam={theme} key={node.path} data={node} />
+          ))}
+        </div>
+      </div>
+      {showCreateDialog && <FileCreateCard initPath="/" handelClose={handelCardClose} theme="dark"/>}
+    </div>
+  );
+};
+
+
+export default Sidebar

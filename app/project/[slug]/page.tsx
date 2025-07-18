@@ -6,12 +6,12 @@ import { FileSystemProvider } from "@/contexts/FileSystemContext"
 import CodeEditor from "@/components/CodeEditor"
 import { useDispatch } from "react-redux"
 import { setUser } from "@/store/auth/authSlice"
-export default function Home({params} : { params : Promise<{slug : string}>}) {
+import SocketProvider from "@/provider/SocketProvider"
+export default function Home({ params }: { params: Promise<{ slug: string }> }) {
   const dispatch = useDispatch();
   const [isClient, setIsClient] = useState(false)
+
   useEffect(() => {
-    console.log(process.env.NEXT_PUBLIC_API_URL);
-    dispatch(setUser(JSON.parse(localStorage.getItem('user') as string)));
     setIsClient(true)
   }, [])
 
@@ -25,13 +25,15 @@ export default function Home({params} : { params : Promise<{slug : string}>}) {
 
   return (
     <ThemeProvider>
-      <FileSystemProvider>
-        <EditorProvider>
-          <div className="h-screen w-screen overflow-hidden">
-            <CodeEditor />
-          </div>
-        </EditorProvider>
-      </FileSystemProvider>
+      <SocketProvider>
+        <FileSystemProvider>
+          <EditorProvider>
+            <div className="h-screen w-screen overflow-hidden">
+              <CodeEditor />
+            </div>
+          </EditorProvider>
+        </FileSystemProvider>
+      </SocketProvider>
     </ThemeProvider>
   )
 }
